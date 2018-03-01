@@ -14,7 +14,6 @@ use DTApi\Repository\BookingRepository;
  */
 class BookingController extends Controller
 {
-
     /**
      * @var BookingRepository
      */
@@ -35,13 +34,9 @@ class BookingController extends Controller
      */
     public function index(Request $request)
     {
-        if($user_id = $request->get('user_id')) {
-
+        if ($user_id = $request->get('user_id')) {
             $response = $this->repository->getUsersJobs($user_id);
-
-        }
-        elseif($request->__authenticatedUser->user_type == env('ADMIN_ROLE_ID') || $request->__authenticatedUser->user_type == env('SUPERADMIN_ROLE_ID'))
-        {
+        } elseif ($request->__authenticatedUser->user_type == env('ADMIN_ROLE_ID') || $request->__authenticatedUser->user_type == env('SUPERADMIN_ROLE_ID')) {
             $response = $this->repository->getAll($request);
         }
 
@@ -70,7 +65,6 @@ class BookingController extends Controller
         $response = $this->repository->store($request->__authenticatedUser, $data);
 
         return response($response);
-
     }
 
     /**
@@ -107,8 +101,7 @@ class BookingController extends Controller
      */
     public function getHistory(Request $request)
     {
-        if($user_id = $request->get('user_id')) {
-
+        if ($user_id = $request->get('user_id')) {
             $response = $this->repository->getUsersJobsHistory($user_id, $request);
             return response($response);
         }
@@ -165,7 +158,6 @@ class BookingController extends Controller
         $response = $this->repository->endJob($data);
 
         return response($response);
-
     }
 
     public function customerNotCall(Request $request)
@@ -175,7 +167,6 @@ class BookingController extends Controller
         $response = $this->repository->customerNotCall($data);
 
         return response($response);
-
     }
 
     /**
@@ -196,59 +187,27 @@ class BookingController extends Controller
     {
         $data = $request->all();
 
-        if (isset($data['distance']) && $data['distance'] != "") {
-            $distance = $data['distance'];
-        } else {
-            $distance = "";
-        }
-        if (isset($data['time']) && $data['time'] != "") {
-            $time = $data['time'];
-        } else {
-            $time = "";
-        }
-        if (isset($data['jobid']) && $data['jobid'] != "") {
-            $jobid = $data['jobid'];
-        }
-
-        if (isset($data['session_time']) && $data['session_time'] != "") {
-            $session = $data['session_time'];
-        } else {
-            $session = "";
+        $distance = $this->getValueIfExists($data, 'distance');
+        $time = $this->getValueIfExists($data, 'time');
+        $jobid = $this->getValueIfExists($data, 'jobid');
+        $session_time = $this->getValueIfExists($data, 'session_time');
+        $flagged = $this->getYesOrNo($data, 'flagged');
+        $manually_handled = $this->getYesOrNo($data, 'manually_handled');
+        $by_admin = $this->getYesOrNo($data, 'by_admin');
+        if ($flagged == 'yes') {
+            if ($data['admincomment'] == '') {
+                return 'Please, add comment';
+            }
         }
 
-        if ($data['flagged'] == 'true') {
-            if($data['admincomment'] == '') return "Please, add comment";
-            $flagged = 'yes';
-        } else {
-            $flagged = 'no';
-        }
-        
-        if ($data['manually_handled'] == 'true') {
-            $manually_handled = 'yes';
-        } else {
-            $manually_handled = 'no';
-        }
+        $admin_comments = $this->getValueIfExists($data, 'admincomment');
 
-        if ($data['by_admin'] == 'true') {
-            $by_admin = 'yes';
-        } else {
-            $by_admin = 'no';
-        }
-
-        if (isset($data['admincomment']) && $data['admincomment'] != "") {
-            $admincomment = $data['admincomment'];
-        } else {
-            $admincomment = "";
-        }
         if ($time || $distance) {
-
-            $affectedRows = Distance::where('job_id', '=', $jobid)->update(array('distance' => $distance, 'time' => $time));
+            $affectedRows = Distance::where('job_id', '=', $jobid)->update(compact('distance', 'time'));
         }
 
-        if ($admincomment || $session || $flagged || $manually_handled || $by_admin) {
-
-            $affectedRows1 = Job::where('id', '=', $jobid)->update(array('admin_comments' => $admincomment, 'flagged' => $flagged, 'session_time' => $session, 'manually_handled' => $manually_handled, 'by_admin' => $by_admin));
-
+        if ($admin_comments || $session || $flagged || $manually_handled || $by_admin) {
+            $affectedRows1 = Job::where('id', '=', $jobid)->update(compact('admin_comments', 'flagged', 'session_time', 'manually_handled', 'by_admin'));
         }
 
         return response('Record updated!');
@@ -291,4 +250,23 @@ class BookingController extends Controller
         }
     }
 
+    protected function getValueIfExists($data, $key)
+    {
+        $output = '';
+        if (isset($data[$key]) && $data[$key] != '') {
+            $output = $data[$key];
+        }
+
+        return $output;
+    }
+
+    protected function getYesOrNo($data, $key)
+    {
+        $output = 'no';
+        if ($data[$key] == 'true') {
+            $output = 'yes';
+        }
+
+        return $output;
+    }
 }
